@@ -141,9 +141,13 @@ class GlueEtl(Construct):
         self.file_name = script_file_name
         self.metrics_layer = operational_metrics_layer
 
+        # Glue database/job/workflow names. The database name must be all lowercase.
+        # Aws.STACK_NAME can contain uppercase characters in nested stack deployments
+        # (CloudFormation appends random uppercase suffixes). We use a fixed lowercase
+        # prefix for the database name to avoid this issue.
         self.GLUE_RESOURCE_PREFIX = f"{Aws.STACK_NAME}-{Aws.REGION}-{self.id.lower()}"
         self.GLUE_JOB_NAME = f"{self.GLUE_RESOURCE_PREFIX}-job"
-        self.GLUE_DATABASE_NAME = f"{self.GLUE_RESOURCE_PREFIX}-database"
+        self.GLUE_DATABASE_NAME = f"prebid-server-{Aws.REGION}-{self.id.lower()}-database"
         self.GLUE_WORKFLOW_NAME = f"{self.GLUE_RESOURCE_PREFIX}-workflow"
 
         fp = Path(__file__).absolute().parents[1] / "prebid_server"
@@ -449,7 +453,7 @@ class GlueEtl(Construct):
                 python_version="3",
                 script_location=f"s3://{self.artifacts_bucket.bucket_name}/glue/{self.file_name}",
             ),
-            glue_version="4.0",
+            glue_version="5.0",
             role=glue_job_role.role_arn,
             default_arguments={
                 "--SOLUTION_ID": self.node.try_get_context("SOLUTION_ID"),

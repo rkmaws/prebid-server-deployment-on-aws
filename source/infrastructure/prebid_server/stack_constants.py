@@ -20,7 +20,7 @@ NAT_GATEWAYS = 2                     # Number of NAT Gateways for private subnet
 # Container configuration
 CONTAINER_PORT = 8443               # Port exposed by the container
 MEMORY_LIMIT_MIB = 4096             # Memory limit for the container in MiB
-VCPU = 1024                         # vCPU units for the container (1024 = 1 vCPU)
+VCPU = 2048                         # vCPU units for the container (2048 = 2 vCPU)
 
 # Health check configuration
 HEALTH_URL_DOMAIN = "https://localhost:" + str(CONTAINER_PORT)

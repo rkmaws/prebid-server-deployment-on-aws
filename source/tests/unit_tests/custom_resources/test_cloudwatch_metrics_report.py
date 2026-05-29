@@ -11,7 +11,7 @@
 import os
 import uuid
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import pytest
 import boto3
@@ -75,7 +75,7 @@ def test_send_metrics(_, mock_response_put, event, context):
 
     mock_response_put.return_value = MagicMock(reason="200")
 
-    dt_utc_now = datetime.utcnow()
+    dt_utc_now = datetime.now(UTC)
     # minus 6 hours to make MetricData timestamp fall into the StartTime and EndTime range used in `cloudwatch_client.get_metric_statistics()`
     metric_data_timestamp = dt_utc_now - timedelta(hours=6)
     test_metric_sum = {}
@@ -294,15 +294,19 @@ def test_send_metrics(_, mock_response_put, event, context):
         ],
     )
 
-    fake_date = MagicMock()
-    fake_date.utcnow.return_value = dt_utc_now
-
-    with patch("custom_resources.cloudwatch_metrics.cloudwatch_metrics_report.datetime", fake_date) as mock_dt_now:
+    with patch("custom_resources.cloudwatch_metrics.cloudwatch_metrics_report.datetime") as mock_dt:
+        # Configure the mock to return dt_utc_now for now() calls
+        mock_dt.now.return_value = dt_utc_now
+        # Preserve the real timedelta class
+        mock_dt.timedelta = timedelta
+        # Preserve the strftime method on datetime objects
+        mock_dt.strftime = datetime.strftime
+        
         from custom_resources.cloudwatch_metrics.cloudwatch_metrics_report import send_metrics, CloudwatchMetricsReport
 
         send_metrics()
 
-        mock_dt_now.utcnow.assert_called()
+        mock_dt.now.assert_called()
 
         def resolve_test_assertion(data):
             for k, v in data["Data"].items():

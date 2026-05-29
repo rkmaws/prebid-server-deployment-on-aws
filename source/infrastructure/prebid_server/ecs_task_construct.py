@@ -19,10 +19,16 @@ class ECSTaskConstruct(Construct):
             docker_configs_manager_bucket,
             stored_requests_bucket,
             simulator_endpoint=None,
-            enable_analytics=False
+            enable_analytics=False,
+            stack_params=None
     ) -> None:
         """
-        This construct creates EFS resources.
+        This construct creates ECS task definition and container.
+        
+        When stack_params is provided, environment variables are derived from
+        CloudFormation parameters and CfnConditions (deploy-time resolution).
+        When stack_params is None, falls back to the legacy Python-side derivation
+        using simulator_endpoint and enable_analytics arguments.
         """
         super().__init__(scope, id)
 
@@ -97,9 +103,32 @@ class ECSTaskConstruct(Construct):
         )
 
         # Determine environment variable values based on parameters
-        amt_enabled = "true" if simulator_endpoint else "false"
-        amt_endpoint = simulator_endpoint if simulator_endpoint else "bidder-simulator-endpoint"
-        analytics_enabled = "true" if enable_analytics else "false"
+        # New path: use CfnConditions for deploy-time resolution
+        # Legacy path: use Python-side derivation
+        if stack_params is not None:
+            from aws_cdk import Fn
+            # AMT_ADAPTER_ENABLED: "true" when HasSimulatorEndpoint, else "false"
+            amt_enabled = Fn.condition_if(
+                stack_params.has_simulator_endpoint.logical_id,
+                "true",
+                "false"
+            ).to_string()
+            # AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT:
+            # At deploy time: endpoint is empty unless VPC peering SimulatorEndpoint is provided.
+            # RTB Fabric path: script populates it later via ECS API (register new task def revision).
+            # Note: Prebid Server validates adapter endpoint URLs even when adapter is disabled,
+            # so we use a placeholder URL instead of empty string to prevent startup failure.
+            amt_endpoint = Fn.condition_if(
+                stack_params.has_simulator_endpoint.logical_id,
+                stack_params.simulator_endpoint_param.value_as_string,
+                "https://localhost/not-configured"
+            ).to_string()
+            # LOG_ANALYTICS_ENABLED: direct reference to CF parameter
+            analytics_enabled = stack_params.enable_log_analytics_param.value_as_string
+        else:
+            amt_enabled = "true" if simulator_endpoint else "false"
+            amt_endpoint = simulator_endpoint if simulator_endpoint else "bidder-simulator-endpoint"
+            analytics_enabled = "true" if enable_analytics else "false"
 
         # Add Container to Task Definition
         self.prebid_container = self.prebid_task_definition.add_container(

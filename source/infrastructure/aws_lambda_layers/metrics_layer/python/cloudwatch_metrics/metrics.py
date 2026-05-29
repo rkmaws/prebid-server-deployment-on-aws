@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from datetime import datetime
+from datetime import datetime, UTC
 
 from aws_solutions.core.helpers import get_service_client
 
@@ -25,7 +25,7 @@ class Metrics:
                     'Dimensions': [{'Name': 'stack-name', 'Value': self.resource_prefix}],
                     'Value': 1,
                     'Unit': 'Count',
-                    "Timestamp": datetime.utcnow()
+                    "Timestamp": datetime.now(UTC)
                 }
             ]
         )
@@ -43,7 +43,7 @@ class Metrics:
                     'Dimensions': [{'Name': 'stack-name', 'Value': self.resource_prefix}],
                     'Value': value,
                     'Unit': 'Count',
-                    "Timestamp": datetime.utcnow()
+                    "Timestamp": datetime.now(UTC)
                 }
             ]
         )

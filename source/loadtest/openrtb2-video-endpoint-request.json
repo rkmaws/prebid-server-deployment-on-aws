@@ -1,0 +1,37 @@
+{
+  "storedrequestid": "video-test-stored-req",
+  "podconfig": {
+    "durationrangesec": [15, 30],
+    "pods": [
+      {
+        "podid": 1,
+        "adpoddurationsec": 30,
+        "configid": "preroll-config"
+      },
+      {
+        "podid": 2,
+        "adpoddurationsec": 60,
+        "configid": "midroll-config"
+      }
+    ]
+  },
+  "site": {
+    "page": "https://video.publisher.example.com/watch/v98765"
+  },
+  "user": {
+    "id": "user-video-789"
+  },
+  "includebrandcategory": {
+    "primaryadserver": 1,
+    "publisher": "",
+    "translatecategories": false
+  },
+  "video": {
+    "mimes": ["video/mp4", "video/webm"],
+    "protocols": [2, 3, 5, 6]
+  },
+  "content": {
+    "len": 1800,
+    "livestream": 0
+  }
+}

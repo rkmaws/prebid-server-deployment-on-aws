@@ -6,7 +6,7 @@ import os
 import json
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from aws_solutions.core.helpers import get_service_client
 
 SOLUTION_ID = os.environ["SOLUTION_ID"]
@@ -39,8 +39,8 @@ class CloudwatchMetricsReport:
         self.cloudwatch_client = get_service_client("cloudwatch")
         self.secrets_manager_client = get_service_client("secretsmanager")
         self.ec2_client = get_service_client("ec2")
-        self.timestamp = datetime.utcnow()
-        self.end_time = datetime.utcnow()
+        self.timestamp = datetime.now(UTC)
+        self.end_time = datetime.now(UTC)
         self.start_time = self.end_time - timedelta(seconds=SECONDS_IN_A_DAY)
         self.statistics = ["Sum", "Minimum", "Maximum"]
         self.uuid = self.get_uuid()

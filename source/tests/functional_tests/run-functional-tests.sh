@@ -4,10 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 ###############################################################################
 
-set -exuo pipefail
+set -euo pipefail
 
 usage() {
-  msg "$msg"
+  msg "${1-}"
   cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [--in-venv] [--test-file-name] [--extras] [--region] --profile PROFILE --stack-name STACK_NAME
 
@@ -33,6 +33,8 @@ msg() {
 
 parse_params() {
   # default values of variables set from params
+  stack_name="prebid-server-deployment-on-aws"
+  profile="default"
   flag=0
   param=''
 
@@ -70,8 +72,8 @@ parse_params() {
   args=("$@")
 
   # check required params and arguments
-  [[ -z "${profile}" ]] && usage "Missing required parameter: profile"
-  [[ -z "${stack-name}" ]] && usage "Missing required parameter: stack-name"
+  [[ -z "${profile:-}" ]] && usage "Missing required parameter: profile"
+  [[ -z "${stack_name:-}" ]] && usage "Missing required parameter: stack-name"
 
   return 0
 }
@@ -92,9 +94,6 @@ source_dir="$(
   pwd -P
 )"
 
-echo "------------------------------------------------------------------------------"
-echo "Creating a temporary Python virtualenv for this script"
-echo "------------------------------------------------------------------------------"
 # Make sure aws cli is installed
 if [[ ! -x "$(command -v aws)" ]]; then
   echo "ERROR: This script requires the AWS CLI to be installed. Please install it then run again."
@@ -103,7 +102,9 @@ fi
 
 create_venv() {
   if [[ ${in_venv:-0} -ne 1 ]]; then
-    echo "Create virtual python environment:"
+    echo "------------------------------------------------------------------------------"
+    echo "Creating a temporary Python virtualenv for this script"
+    echo "------------------------------------------------------------------------------"
     VENV=$(mktemp -d) && echo "$VENV"
     command -v python3 >/dev/null
     if [ $? -ne 0 ]; then

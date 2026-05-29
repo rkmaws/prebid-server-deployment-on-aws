@@ -16,7 +16,7 @@ import concurrent.futures
 import re
 import boto3
 from botocore import config
-from datetime import datetime
+from datetime import datetime, UTC
 
 args = getResolvedOptions(sys.argv, [
     "SOLUTION_ID",
@@ -146,7 +146,7 @@ def send_metrics(metric_name, value):
                 'Dimensions': [{'Name': 'stack-name', 'Value': RESOURCE_PREFIX}],
                 'Value': value,
                 'Unit': 'Count',
-                "Timestamp": datetime.utcnow()
+                "Timestamp": datetime.now(UTC)
             }
         ]
     )

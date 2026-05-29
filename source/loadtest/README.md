@@ -1,106 +1,80 @@
 # Load Test
 
-This document provides instructions for setting up and running load tests on a Prebid Server on AWS deployment using a simulated bidding server and the AMT bid adapter. The load test helps evaluate the performance and stability of the Prebid Server under simulated auction conditions.
-
-## Quick Start
-
-Deploy the solution with the bidder simulator using the `deploy.sh` script:
-
-```bash
-./deploy.sh --deploy-bidding-simulator --profile <your-profile> --region <your-region>
-```
-
-This automatically:
-- Deploys the bidder simulator stack with CloudFront, ALB, and Lambda
-- Copies AMT bidder files to the Docker build context
-- Includes AMT bidder files in the Docker build
-- Configures the AMT adapter in Prebid Server
-- Sets up environment variables for the simulator endpoint
+This document covers testing and load testing a Prebid Server on AWS deployment using the bidder simulator and the AMT bid adapter.
 
 ## Test Auction Requests
 
-After deployment, use the provided test script to validate the setup:
+After deployment, use the provided test script to validate the setup. The script sends full OpenRTB 2.x requests to the `/openrtb2/auction` endpoint and validates the responses.
 
 ```bash
 cd source/loadtest
-python test-auction-amt.py --endpoint <your-cloudfront-dns-name-without-https>
+
+# Test banner + outstream video
+python test-auction-amt.py --endpoint <your-cloudfront-dns-name> --type banner+outstream
+
+# Test instream video (preroll + midroll)
+python test-auction-amt.py --endpoint <your-cloudfront-dns-name> --type instream
+
+# Test all request types
+python test-auction-amt.py --endpoint <your-cloudfront-dns-name> --type all
+
+# Verbose output with full request/response payloads
+python test-auction-amt.py --endpoint <your-cloudfront-dns-name> --type all --verbose
+
+# Use a custom request file
+python test-auction-amt.py --endpoint <your-cloudfront-dns-name> --type banner+outstream --request-file custom.json
+
+# Dump request JSON without sending (useful for inspection)
+python test-auction-amt.py --endpoint <your-cloudfront-dns-name> --type all --dump
 ```
+
+### Request Types
+
+| Type | Impressions | Description |
+|------|-------------|-------------|
+| `banner+outstream` | `banner_imp_1` (300x250), `banner_imp_2` (728x90), `outstream_video_imp_1` (640x480) | Banner display ads + outstream in-article video |
+| `instream` | `instream_video_imp_1` (preroll), `instream_video_imp_2` (midroll) | Instream video with preroll (startdelay=0) and midroll (startdelay=900) |
 
 ### Example Output
 
 ```
-=== Auction Request ===
-{
-  "id": "test-auction-123",
-  "imp": [
-    {
-      "id": "imp1",
-      "banner": {"w": 300, "h": 250},
-      "ext": {
-        "amt": {
-          "placementId": "test-placement",
-          "bidFloor": 1.0,
-          "bidCeiling": 100.0
-        }
-      }
-    }
-  ],
-  ...
-}
+OpenRTB 2.x Prebid Server Test
+Endpoint: https://d1234567890.cloudfront.net
 
-=== Auction Response ===
-{
-  "id": "test-auction-123",
-  "seatbid": [
-    {
-      "bid": [
-        {
-          "id": "bid_1",
-          "impid": "imp1",
-          "price": 5.55,
-          "crid": "creative-123"
-        }
-      ],
-      "seat": "amt"
-    }
-  ],
-  ...
-}
+============================================================
+  BANNER + OUTSTREAM  →  /openrtb2/auction
+============================================================
+✓ Loaded request from: openrtb2-banner-outstream-request.json
+Impressions: banner_imp_1, banner_imp_2, outstream_video_imp_1
 
-✓ Auction successful - received 1 bid(s)
+=== RESPONSE (200) ===
+✓ id present
+✓ seatbid present
+✓ cur present
+✓ 1 seat(s) returned
+  seat=amt  bids=3
+    impid=banner_imp_1  price=3.25  crid=banner_creative_1  type=banner
+    impid=banner_imp_2  price=2.75  crid=banner_creative_2  type=banner
+    impid=outstream_video_imp_1  price=12.5  crid=outstream_video_creative_1  type=video
+
+=== SUMMARY ===
+  ✓ banner+outstream
+  ✓ instream
 ```
+
+### Request JSON Files
+
+Default request payloads are provided as JSON files in `source/loadtest/`:
+- `openrtb2-banner-outstream-request.json` — Banner + outstream video request
+- `openrtb2-instream-video-request.json` — Instream preroll + midroll video request
+
+These can be customized directly or overridden with `--request-file`.
 
 ### Test Script Options
 
 ```bash
 python test-auction-amt.py --help
 ```
-
-### Example JSON Files
-
-Example request and response files are provided in `source/loadtest/amt-bidder/`:
-- `test-auction-amt-request.json` - Example request format
-- `test-auction-amt-response.json` - Example expected response format
-
-## Deployment Options
-
-### Deploy with Analytics
-
-To enable analytics logging during load testing:
-
-```bash
-./deploy.sh --deploy-bidding-simulator --enable-log-analytics --profile <your-profile> --region <your-region>
-```
-
-### Verify Deployment
-
-After deployment completes:
-1. Check CloudFormation console for the `BiddingServerSimulator` stack
-2. Note the simulator endpoint URL from the stack outputs
-3. Verify the Prebid Server ECS tasks have the correct environment variables:
-   - `AMT_ADAPTER_ENABLED=true`
-   - `AMT_BIDDING_SERVER_SIMULATOR_ENDPOINT=<simulator-url>`
-   - `LOG_ANALYTICS_ENABLED=true` (if analytics enabled)
 
 ## Bidder Simulator Configuration
 
@@ -178,17 +152,58 @@ Use the [Distributed Load Testing on AWS](https://aws.amazon.com/solutions/imple
 1. Follow the DLT implementation guide to set up the solution
 2. Upload your JMeter test plan to start load tests
 
-## Programmatic Testing
+#### Deploying DLT in the Prebid Server VPC
 
-Use the provided `test-auction-amt.py` script:
+When deploying DLT into the same VPC as Prebid Server (recommended for simplicity), the DLT Fargate tasks use the VPC's S3 Gateway endpoint. This endpoint has a restrictive policy that only allows access to specific buckets. You must add the DLT storage bucket to the policy.
 
-```bash
-cd source/loadtest
-python test-auction-amt.py --endpoint <your-cloudfront-endpoint-dns-name-without-https>
-```
+**Setup steps:**
 
-The script provides:
-- Automatic request formatting
-- Response validation
-- Clear success/failure indicators
-- Detailed output of bid information
+1. **Deploy DLT with the Prebid Server VPC and private subnets:**
+
+   During DLT stack creation, configure:
+   - **Existing VPC ID**: Use the Prebid Server VPC ID (from `aws ec2 describe-vpcs` or CloudFormation outputs)
+   - **First existing subnet**: Prebid Server private subnet 1 (has NAT gateway for outbound internet)
+   - **Second existing subnet**: Prebid Server private subnet 2
+   - Leave the CIDR block fields unchanged (they are ignored when using an existing VPC)
+
+2. **Update the S3 VPC Gateway endpoint policy:**
+
+   The Prebid Server VPC's S3 Gateway endpoint restricts bucket access. Add the DLT storage bucket with `GetObject`, `PutObject`, and `ListBucket` permissions:
+
+   ```bash
+   # Find the DLT storage bucket name
+   aws cloudformation describe-stacks \
+     --stack-name <DLT-stack-name> \
+     --query "Stacks[0].Outputs[?OutputKey=='ScenariosBucket'].OutputValue" \
+     --output text
+
+   # Find the S3 VPC endpoint ID
+   aws ec2 describe-vpc-endpoints \
+     --filters "Name=vpc-id,Values=<prebid-vpc-id>" "Name=service-name,Values=com.amazonaws.<region>.s3" \
+     --query 'VpcEndpoints[0].VpcEndpointId' \
+     --output text
+
+   # Update the endpoint policy to include the DLT bucket
+   # Add this statement to the existing policy:
+   #   {
+   #     "Effect": "Allow",
+   #     "Principal": {"AWS": "*"},
+   #     "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+   #     "Resource": [
+   #       "arn:aws:s3:::<dlt-bucket-name>",
+   #       "arn:aws:s3:::<dlt-bucket-name>/*"
+   #     ],
+   #     "Condition": {"StringEquals": {"aws:ResourceAccount": "<account-id>"}}
+   #   }
+   ```
+
+   The DLT tasks need:
+   - `GetObject` — to download the JMX test plan from S3
+   - `PutObject` — to upload test results back to S3
+   - `ListBucket` — for result file enumeration
+
+   Without `PutObject`, tests will run successfully but results will fail to parse with: `"Failed to parse the results - Cannot read properties of undefined (reading 'Key')"`
+
+3. **Configure the JMeter test plan:**
+
+   Update the `url` variable in your JMX file to the Prebid Server CloudFront domain name (e.g., `d1234567890.cloudfront.net`). The DLT tasks reach Prebid Server via the public CloudFront endpoint — no VPC peering or internal routing needed.

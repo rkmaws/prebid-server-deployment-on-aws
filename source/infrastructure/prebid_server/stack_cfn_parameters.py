@@ -3,12 +3,18 @@
 
 import prebid_server.stack_constants as stack_constants
 from aws_cdk import (
-    CfnParameter
+    CfnParameter,
+    CfnCondition,
+    Fn
 )
 
 # Constants
 ECS_AUTOSCALING_GROUP_NAME = "ECS Service Autoscaling Settings"
 CDN_GROUP_NAME = "Content Delivery Network (CDN) Settings"
+CONTAINER_GROUP_NAME = "Container Settings"
+LOG_ANALYTICS_GROUP_NAME = "Log Analytics Settings"
+RTB_FABRIC_GROUP_NAME = "RTB Fabric Settings"
+VPC_PEERING_GROUP_NAME = "VPC Peering Settings (Fallback)"
 
 class StackParams:
     def __init__(self, stack) -> None:
@@ -91,6 +97,126 @@ class StackParams:
         stack.solutions_template_options.add_parameter(
             self.spot_instance_weight, label="SpotInstanceWeight",
             group=ECS_AUTOSCALING_GROUP_NAME)
+
+        # --- Container Settings ---
+        self.container_image_param = CfnParameter(
+            stack,
+            id="ContainerImageUri",
+            description="ECR image URI for the Prebid Server container. Leave empty to build from source (CDK deployment path). Required when deploying via synthesized CloudFormation template.",
+            type="String",
+            default=""
+        )
+
+        stack.solutions_template_options.add_parameter(
+            self.container_image_param, label="ContainerImageUri",
+            group=CONTAINER_GROUP_NAME)
+
+        # --- Log Analytics Settings ---
+        self.enable_log_analytics_param = CfnParameter(
+            stack,
+            id="EnableLogAnalytics",
+            description="Enable log analytics for Prebid Server auction data (EFS → DataSync → S3 → Glue ETL → Athena)",
+            type="String",
+            allowed_values=["true", "false"],
+            default="false"
+        )
+
+        stack.solutions_template_options.add_parameter(
+            self.enable_log_analytics_param, label="EnableLogAnalytics",
+            group=LOG_ANALYTICS_GROUP_NAME)
+
+        # --- RTB Fabric Settings ---
+        self.enable_rtb_requester_gateway_param = CfnParameter(
+            stack,
+            id="EnableRtbRequesterGateway",
+            description="Create an RTB Fabric Requester Gateway for partner connectivity. Set to 'true' to provision the gateway. Fabric Link lifecycle is managed by the simulator-fabric-link.sh script.",
+            type="String",
+            allowed_values=["true", "false"],
+            default="false"
+        )
+
+        stack.solutions_template_options.add_parameter(
+            self.enable_rtb_requester_gateway_param, label="EnableRtbRequesterGateway",
+            group=RTB_FABRIC_GROUP_NAME)
+
+        # --- VPC Peering Settings (Fallback) ---
+        self.simulator_vpc_id_param = CfnParameter(
+            stack,
+            id="SimulatorVpcId",
+            description="The VPC ID of the BidderSimulatorStack. Required for VPC peering connectivity (fallback when RTB Fabric is not available).",
+            type="String",
+            default=""
+        )
+
+        self.simulator_alb_sg_id_param = CfnParameter(
+            stack,
+            id="SimulatorAlbSgId",
+            description="The ALB Security Group ID from the BidderSimulatorStack. Used to allow traffic from PrebidServerStack VPC over VPC peering.",
+            type="String",
+            default=""
+        )
+
+        self.simulator_route_table_id_1_param = CfnParameter(
+            stack,
+            id="SimulatorRouteTableId1",
+            description="First private subnet route table ID from the BidderSimulatorStack VPC. Used for return traffic routing over VPC peering.",
+            type="String",
+            default=""
+        )
+
+        self.simulator_route_table_id_2_param = CfnParameter(
+            stack,
+            id="SimulatorRouteTableId2",
+            description="Second private subnet route table ID from the BidderSimulatorStack VPC. Used for return traffic routing over VPC peering.",
+            type="String",
+            default=""
+        )
+
+        self.simulator_endpoint_param = CfnParameter(
+            stack,
+            id="SimulatorEndpoint",
+            description="The bidder simulator's internal ALB DNS name. Used as the ECS bidder endpoint when VPC peering is the connectivity model.",
+            type="String",
+            default=""
+        )
+
+        stack.solutions_template_options.add_parameter(
+            self.simulator_vpc_id_param, label="SimulatorVpcId",
+            group=VPC_PEERING_GROUP_NAME)
+        stack.solutions_template_options.add_parameter(
+            self.simulator_alb_sg_id_param, label="SimulatorAlbSgId",
+            group=VPC_PEERING_GROUP_NAME)
+        stack.solutions_template_options.add_parameter(
+            self.simulator_route_table_id_1_param, label="SimulatorRouteTableId1",
+            group=VPC_PEERING_GROUP_NAME)
+        stack.solutions_template_options.add_parameter(
+            self.simulator_route_table_id_2_param, label="SimulatorRouteTableId2",
+            group=VPC_PEERING_GROUP_NAME)
+        stack.solutions_template_options.add_parameter(
+            self.simulator_endpoint_param, label="SimulatorEndpoint",
+            group=VPC_PEERING_GROUP_NAME)
+
+        # --- CfnConditions ---
+        # HasRtbRequesterGateway: EnableRtbRequesterGateway == "true"
+        self.has_rtb_requester_gateway = CfnCondition(
+            stack,
+            "HasRtbRequesterGateway",
+            expression=Fn.condition_equals(self.enable_rtb_requester_gateway_param.value_as_string, "true")
+        )
+
+        # UseVpcPeering: SimulatorVpcId != ""
+        self.use_vpc_peering = CfnCondition(
+            stack,
+            "UseVpcPeering",
+            expression=Fn.condition_not(Fn.condition_equals(self.simulator_vpc_id_param.value_as_string, ""))
+        )
+
+        # HasSimulatorEndpoint: SimulatorEndpoint != ""
+        self.has_simulator_endpoint = CfnCondition(
+            stack,
+            "HasSimulatorEndpoint",
+            expression=Fn.condition_not(Fn.condition_equals(self.simulator_endpoint_param.value_as_string, ""))
+        )
             
     def validate_parameters(self):
         """
