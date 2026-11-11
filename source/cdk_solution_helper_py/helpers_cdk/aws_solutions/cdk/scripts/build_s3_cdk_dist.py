@@ -236,7 +236,13 @@ def source_code_package(ctx, ignore, solution_name):
         "**/*.egg-info",
         "**/__pycache__",
         ".crux_template.md",
-        "**/.venv/*"
+        "**/.venv/*",
+        "**/node_modules/*",
+        "**/coverage-reports/*",
+        "**/jmeter.log",
+        "**/log.jtl",
+        "**/package-lock.json",
+        "**/demo/dist/*"
     ]
     ignored.extend(ignore)
 
@@ -247,6 +253,7 @@ def source_code_package(ctx, ignore, solution_name):
         "CODE_OF_CONDUCT.md",
         "CONTRIBUTING.md",
         "CHANGELOG.md",
+        "SECURITY.md",
         ".gitignore",
         "solution-manifest.yaml",
         "deploy.sh",
@@ -289,6 +296,17 @@ def source_code_package(ctx, ignore, solution_name):
                 f"The solution is missing deployment/{copy_file}"
             )
 
+    # copy additional deployment scripts (RTB Fabric Link lifecycle)
+    optional_deployment_files = [
+        "simulator_fabric_link.py",
+        "simulator-fabric-link.sh",
+        "requirements-fabric-link.txt",
+    ]
+    for copy_file in optional_deployment_files:
+        src = Path(env.template_dir) / copy_file
+        if src.exists():
+            shutil.copyfile(src, Path(env.open_source_dir) / "deployment" / copy_file)
+
     # copy the deployment/ecr files
     try:
         shutil.copytree(
@@ -300,19 +318,44 @@ def source_code_package(ctx, ignore, solution_name):
             "The solution is missing deployment/ecr files"
         )
 
-    # copy the diagram png from the docs/ folder
-    (Path(env.open_source_dir) / "docs").mkdir()
+    # copy the pre-built container image tar.gz (created by pipeline build step)
+    container_dir = Path(env.template_dir) / "container"
+    if container_dir.exists():
+        shutil.copytree(
+            container_dir,
+            Path(env.open_source_dir) / "deployment" / "container",
+        )
+    else:
+        logger.info("No deployment/container directory found — skipping (container image not built in this run)")
 
-    for copy_file in ["prebid-server-deployment-on-aws.png","prebid-server-deployment-on-aws-log-analytics.png"]:
-        try:
-            shutil.copyfile(
-                Path(env.source_dir).parent / "docs" / copy_file,
-                Path(env.open_source_dir) / "docs" / copy_file,
-            )
-        except FileNotFoundError:
-            raise click.ClickException(
-                f"The solution is missing docs/{copy_file}"
-            )
+    # copy synthesized CloudFormation templates into deployment/templates/
+    global_assets_dir = Path(env.template_dist_dir)
+    if global_assets_dir.exists():
+        templates_dest = Path(env.open_source_dir) / "deployment" / "templates"
+        templates_dest.mkdir(parents=True, exist_ok=True)
+        for template_file in global_assets_dir.glob("*.template"):
+            shutil.copyfile(template_file, templates_dest / template_file.name)
+        for template_file in global_assets_dir.glob("*.template.json"):
+            shutil.copyfile(template_file, templates_dest / template_file.name)
+        logger.info(f"Copied synthesized templates to deployment/templates/")
+    else:
+        logger.info("No global-s3-assets directory found — skipping template copy")
+
+    # copy the docs/ folder (architecture diagrams + migration guide)
+    docs_dest = Path(env.open_source_dir) / "docs"
+    docs_dest.mkdir(exist_ok=True)
+
+    docs_files = [
+        "prebid-server-deployment-on-aws.png",
+        "prebid-server-deployment-on-aws-log-analytics.png",
+        "migration-guide-v1.3-to-v1.4.md",
+    ]
+    for copy_file in docs_files:
+        src = Path(env.source_dir).parent / "docs" / copy_file
+        if src.exists():
+            shutil.copyfile(src, docs_dest / copy_file)
+        else:
+            logger.warning(f"docs/{copy_file} not found — skipping")
 
     # The entire loadtest directory is now included automatically via source directory copy
     # since "loadtest" was removed from the ignored directories list above

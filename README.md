@@ -5,20 +5,22 @@
 2. [Cost](#cost)
 3. [Prerequisites](#prerequisites)
 4. [Deployment Steps](#deployment-steps)
-5. [Deployment Validation](#deployment-validation)
-6. [Running the Guidance](#running-the-guidance)
-7. [Next Steps](#next-steps)
-8. [Cleanup](#cleanup)
-9. [FAQ, Known Issues, Additional Considerations, and Limitations](#faq-known-issues-additional-considerations-and-limitations)
-10. [Revisions](#revisions)
-11. [Notices](#notices)
-12. [Authors](#authors)
+5. [Deployment Scenarios](#deployment-scenarios)
+6. [CloudFormation Parameters](#cloudformation-parameters)
+7. [Deployment Validation](#deployment-validation)
+8. [Running the Guidance](#running-the-guidance)
+9. [Next Steps](#next-steps)
+10. [Cleanup](#cleanup)
+11. [FAQ, Known Issues, Additional Considerations, and Limitations](#faq-known-issues-additional-considerations-and-limitations)
+12. [Revisions](#revisions)
+13. [Notices](#notices)
+14. [Authors](#authors)
 
 ## Overview
 
 Guidance for Deploying a Prebid Server on AWS helps customers deploy and operate Prebid Server, an open source solution for real-time ad monetization, in their own AWS environment. The solution enables customers with ad-supported websites to achieve scaled access to advertising revenue through a community of more than 180+ advertising platforms. Customers achieve full control over decision logic and access to transaction data, and realize AWS benefits like global scalability and pay-as-you-go economics.
 
-This solution deploys v3.28.0 of [Prebid Server Java](https://github.com/prebid/prebid-server-java.git) with infrastructure in a single region of the AWS Cloud to handle a wide range of request traffic, and recording of auction and bid transaction data.
+This solution deploys v3.43.0 of [Prebid Server Java](https://github.com/prebid/prebid-server-java.git) with infrastructure in a single region of the AWS Cloud to handle a wide range of request traffic, and recording of auction and bid transaction data.
 
 ### Key Features
 
@@ -30,7 +32,7 @@ This solution deploys v3.28.0 of [Prebid Server Java](https://github.com/prebid/
 
 - **Ownership of all operational and business data**: All data from Prebid Server metrics extract, transform, and load (ETL) to AWS Glue Data Catalog for seamless integration with various clients, such as Amazon Athena, Amazon Redshift, and Amazon SageMaker AI.
 
-- **AWS RTB Fabric integration**: Optionally route bid requests through [AWS RTB Fabric](https://aws.amazon.com/rtb-fabric/), a private network purpose-built for real-time bidding. RTB Fabric provides low-latency, cost-optimized connectivity between Prebid Server and bidder endpoints without traversing the public internet.
+- **AWS RTB Fabric integration**: Optionally route bid requests through [AWS RTB Fabric](https://aws.amazon.com/rtb-fabric/), a private network purpose-built for real-time bidding. RTB Fabric provides low-latency, cost-optimized connectivity between Prebid Server and bidder endpoints without traversing the public internet. Note: RTB Fabric integration currently covers **outbound** bid requests (Prebid Server → bidders). Using RTB Fabric managed endpoints for **inbound** traffic (replacing ALB/CloudFront) is not yet supported because managed endpoints require EC2 Auto Scaling groups or EKS, and this solution runs on ECS Fargate.
 
 - **Quick start with bidder simulator**: Deploy an optional bidder simulator stack to quickly test and validate your Prebid Server deployment without needing to configure external bidders.
 
@@ -74,7 +76,7 @@ The following table provides a sample cost breakdown for deploying this Guidance
 | Other services | Amazon CloudFront, AWS CloudTrail AWS DataSync, IAM, AWS Glue, AWS KMS, AWS Lambda, and Amazon VPC | $47.00 |
 | **Total** | | **$241.50** |
 
-**Optional: AWS RTB Fabric cost (when deployed with `--include-rtb-fabric`)**
+**Optional: AWS RTB Fabric cost (when deployed with `--simulator-connectivity rtb-fabric`)**
 
 | AWS service  | Dimensions | Cost [USD] |
 | ----------- | ------------ | ------------ |
@@ -113,6 +115,8 @@ These deployment instructions are optimized to best work on **macOS, Linux, or W
   * **Alternative**: You can use [Finch](https://github.com/runfinch/finch) as a Docker Desktop alternative. Set `export CDK_DOCKER=finch` in your environment to use Finch with CDK.
 * [AWS access key ID and secret access key](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) configured in your environment with AdministratorAccess equivalent permissions
 
+> **Note:** If you plan to use the pre-built container image (quick-start path), only AWS CLI and Docker/Finch are required. Python, Node.js, CDK, Java, and Maven are only needed when building from source. Download the pre-built container tar.gz from the [GitHub Release](https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws/releases) assets.
+
 ### AWS account requirements
 
 You need an AWS account with AdministratorAccess equivalent permissions to deploy this solution.
@@ -147,37 +151,43 @@ For a streamlined deployment experience on Linux/macOS, use the provided `deploy
 
 3. Run the deployment script:
    ```bash
-   # Deploy with analytics (most common use case)
+   # Deploy Prebid Server only (no simulator)
+   ./deploy.sh --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with analytics
    ./deploy.sh --enable-log-analytics --profile <your-aws-cli-profile> --region <your-region>
 
-   # Deploy with bidder simulator
+   # Deploy with bidder simulator (RTB Fabric connectivity — default)
    ./deploy.sh --deploy-bidding-simulator --profile <your-aws-cli-profile> --region <your-region>
 
-   # Deploy with bidder simulator and RTB Fabric
-   ./deploy.sh --deploy-bidding-simulator --include-rtb-fabric --profile <your-aws-cli-profile> --region <your-region>
+   # Deploy with bidder simulator (VPC peering fallback)
+   ./deploy.sh --deploy-bidding-simulator --simulator-connectivity vpc-peering --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with RTB Requester Gateway only (for partner onboarding)
+   ./deploy.sh --enable-rtb-requester-gateway --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with a pre-built container image (tar.gz)
+   ./deploy.sh --container-image deployment/container/prebid-server.tar.gz --profile <your-aws-cli-profile> --region <your-region>
+
+   # Deploy with an existing ECR image URI
+   ./deploy.sh --container-image 123456789012.dkr.ecr.us-east-1.amazonaws.com/prebid-server:latest --profile <your-aws-cli-profile> --region <your-region>
 
    # Deploy with all features enabled
-   ./deploy.sh --deploy-bidding-simulator --include-rtb-fabric --enable-log-analytics --profile <your-aws-cli-profile> --region <your-region>
+   ./deploy.sh --deploy-bidding-simulator --enable-log-analytics --profile <your-aws-cli-profile> --region <your-region>
    ```
 
    The `deploy.sh` script automatically:
    - Copies AMT bidder files to the Docker build context when `--deploy-bidding-simulator` is used
-   - Sets up the Python virtual environment
-   - Installs dependencies
-   - Runs CDK with the appropriate context flags
+   - Sets up the Python virtual environment and installs dependencies
+   - Authenticates with ECR (public and private registries)
+   - Deploys BidderSimulatorStack first (if requested), then PrebidServerStack with CF parameter overrides from simulator outputs
+   - Handles container image loading/pushing when `--container-image` is a tar.gz path
 
-   When RTB Fabric is enabled (`--include-rtb-fabric`), the solution creates:
-   - A **Requester Gateway** in the Prebid Server VPC (sends bid requests)
-   - A **Responder Gateway** in the Bidder Simulator VPC (receives bid requests)
-   - A **Fabric Link** connecting the two gateways through AWS RTB Fabric's private network
-   - A Lambda function to automatically accept the Fabric Link
-
-   Prebid Server is then configured to route bid requests through the RTB Fabric link URL instead of directly to the bidder simulator ALB.
-
-   For other deployment options and usage details, run:
+   For all options, run:
    ```bash
    ./deploy.sh --help
    ```
+   > **Note:** The script is for quick start with minimal options. For all CDK stack options, use the manual deployment and refer to the [documentation](https://docs.aws.amazon.com/solutions/latest/prebid-server-deployment-on-aws/stack-parameters.html) for all CDK parameters.
 
 ### 2. Customization, Build and Deploy
 
@@ -212,11 +222,7 @@ For customization or manual deployment, follow these steps:
 
    **Prebid Server Container Image**
    
-   By default, the Prebid Server container image will be built locally using Docker ([README](deployment/ecr/README.md)). If you prefer to use a remote image (from ECR or Docker Hub), set the following environment variable with your fully qualified image name before building the template:
-
-   ```bash
-   export OVERRIDE_ECR_REGISTRY=your-fully-qualified-image-name
-   ```
+   By default, the Prebid Server container image will be built locally using Docker ([README](deployment/ecr/README.md)). To use a pre-built or custom container image, use the `--container-image` flag with `deploy.sh` or set the `ContainerImage` CloudFormation parameter directly.
 
    **Manual Deployment with AWS CDK**
    
@@ -227,7 +233,7 @@ For customization or manual deployment, follow these steps:
    cp -r source/loadtest/amt-bidder deployment/ecr/prebid-server/
    ```
 
-   Then deploy using CDK:
+   Then deploy using CDK (two-step process):
 
    ```bash
    cd source/infrastructure
@@ -235,19 +241,74 @@ For customization or manual deployment, follow these steps:
    # bootstrap CDK (required once - deploys a CDK bootstrap CloudFormation stack for assets)  
    cdk bootstrap --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
 
-   # build and deploy with bidder simulator
-   cdk deploy --all --context deployBiddingSimulator=true --profile <your-aws-cli-profile> --region <your-region>
+   # Step 1: Deploy BidderSimulatorStack (if using simulator)
+   cdk deploy BiddingServerSimulator \
+     --context deployBiddingSimulator=true \
+     --parameters BiddingServerSimulator:EnableRtbFabric=true \
+     --profile <your-aws-cli-profile> --region <your-region>
 
-   # build and deploy with bidder simulator and RTB Fabric
-   cdk deploy --all --context deployBiddingSimulator=true --context includeRtbFabric=true --profile <your-aws-cli-profile> --region <your-region>
+   # Step 2: Deploy PrebidServerStack with RTB Requester Gateway enabled
+   cdk deploy prebid-server-deployment-on-aws \
+     --context deployBiddingSimulator=true \
+     --parameters prebid-server-deployment-on-aws:EnableRtbRequesterGateway=true \
+     --profile <your-aws-cli-profile> --region <your-region>
 
-   # or deploy without bidder simulator (no file copy needed)
-   cdk deploy --all --profile <your-aws-cli-profile> --region <your-region>
+   # Step 3: Create the Fabric Link (post-deployment, matches what deploy.sh does automatically)
+   python3 deployment/simulator_fabric_link.py create \
+     --stack-name prebid-server-deployment-on-aws \
+     --responder-gateway-id <responder-gw-id-from-step-1-outputs> \
+     --profile <your-aws-cli-profile> --region <your-region>
+
+   # Or deploy without bidder simulator (no file copy needed, single step)
+   cdk deploy prebid-server-deployment-on-aws \
+     --profile <your-aws-cli-profile> --region <your-region>
    ```
+
+   > **Note:** When deploying with the simulator, the two-step process is required because PrebidServerStack needs outputs from BidderSimulatorStack as CloudFormation parameter overrides. The `deploy.sh` script handles this automatically.
 
    **Advanced Configuration**
    
    For advanced customization or troubleshooting, refer to the [loadtest component readme](./source/loadtest/README.md) which contains detailed information about bidder simulator configuration and manual CDK deployment instructions.
+
+## Deployment Scenarios
+
+The solution supports the following deployment paths:
+
+| Scenario | deploy.sh flags | Description |
+|----------|----------------|-------------|
+| PBS only (no simulator) | `--profile <p> --region <r>` | Core Prebid Server infrastructure. Connects to external bidders via NAT gateways. |
+| PBS + simulator (RTB Fabric) | `--deploy-bidding-simulator` | Default simulator connectivity. After stack deployment, `deployment/simulator_fabric_link.py` creates the Fabric Link and updates the ECS task definition directly via the ECS API (no CloudFormation stack update needed). Traffic is routed through AWS RTB Fabric private network. |
+| PBS + simulator (VPC peering) | `--deploy-bidding-simulator --simulator-connectivity vpc-peering` | Fallback for regions where RTB Fabric is unavailable. Direct VPC peering between stacks. |
+| PBS + RTB Requester Gateway only | `--enable-rtb-requester-gateway` | Provisions a Requester Gateway for partner onboarding without deploying the simulator. Create Fabric Links manually. |
+| PBS + analytics | `--enable-log-analytics` | Enables the log analytics pipeline (Glue, Athena, QuickSight). |
+| PBS + custom container (tar.gz) | `--container-image deployment/container/prebid-server.tar.gz` | Loads the pre-built container image (from release zip), pushes to ECR, deploys with that image. |
+| PBS + custom container (ECR URI) | `--container-image <ecr-uri>` | Deploys with an existing ECR image URI (skips local Docker build). |
+
+Flags can be combined. For example, deploy with simulator + analytics:
+```bash
+./deploy.sh --deploy-bidding-simulator --enable-log-analytics --profile <p> --region <r>
+```
+
+## CloudFormation Parameters
+
+### PrebidServerStack Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `EnableLogAnalytics` | String (true/false) | `false` | Enable the log analytics pipeline (Glue ETL, Athena, QuickSight). |
+| `EnableRtbRequesterGateway` | String (true/false) | `false` | Provision an RTB Fabric Requester Gateway in the Prebid Server VPC. Required for RTB Fabric connectivity. |
+| `ContainerImage` | String | `` (empty) | ECR image URI for Prebid Server. When empty, the container is built from source during CDK deployment. |
+| `SimulatorVpcId` | String | `` (empty) | Bidder Simulator VPC ID. Used for VPC peering connectivity. |
+| `SimulatorAlbSgId` | String | `` (empty) | Bidder Simulator ALB Security Group ID. Used to authorize ingress from Prebid Server VPC via peering. |
+| `SimulatorRouteTableId1` | String | `` (empty) | First route table ID in the Bidder Simulator VPC (for peering routes). |
+| `SimulatorRouteTableId2` | String | `` (empty) | Second route table ID in the Bidder Simulator VPC (for peering routes). |
+| `SimulatorEndpoint` | String | `` (empty) | Bidder Simulator ALB endpoint URL. Used as the bid endpoint when VPC peering is active. |
+
+### BidderSimulatorStack Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `EnableRtbFabric` | String (true/false) | `true` | Deploy an RTB Fabric Responder Gateway in the simulator VPC. Set to `false` for VPC peering mode. |
 
 ## Deployment Validation
 
@@ -260,6 +321,49 @@ After deploying the solution:
 5. Test prebid.js integration following the instructions demo website readme [here](source/loadtest/demo/README.md).
 
 ## Running the Guidance
+
+### Container Image Deployment
+
+The solution supports three paths for deploying the Prebid Server container image:
+
+#### Quick start: Pre-built container image (recommended)
+
+A pre-built container image (`prebid-server.tar.gz`) is available as a downloadable asset on the [GitHub Release page](https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws/releases). This is the fastest path to deployment — no local Docker build, no Maven/Java toolchain required.
+
+**Deploy:**
+
+1. Download `prebid-server-deployment-on-aws.zip` from the [latest release](https://github.com/aws-solutions-library-samples/prebid-server-deployment-on-aws/releases)
+2. Extract and deploy:
+
+```bash
+unzip prebid-server-deployment-on-aws.zip -d prebid-server
+cd prebid-server
+./deploy.sh --container-image deployment/container/prebid-server.tar.gz --profile <p> --region <r>
+```
+
+The `deploy.sh` script handles everything automatically:
+1. Loads the tar.gz into your local container runtime (Docker/Finch)
+2. Creates an ECR repository (`prebid-server-on-aws`) if it doesn't exist
+3. Tags and pushes the image to your ECR
+4. Deploys the stack with `ContainerImage` pointing to the pushed URI
+
+> **Note:** The release zip includes the pre-built container image. If you cloned the source repository directly, the tar.gz is not included — build from source instead or download the release zip.
+
+#### Build from source
+
+Without `--container-image`, the CDK deployment builds the container image locally from `deployment/ecr/prebid-server/` and pushes it to a CDK-managed ECR repository. This requires Docker, Java 21, and Maven installed locally:
+
+```bash
+./deploy.sh --profile <p> --region <r>
+```
+
+#### Use an existing ECR URI
+
+If you already have a Prebid Server image in ECR:
+
+```bash
+./deploy.sh --container-image 123456789012.dkr.ecr.us-east-1.amazonaws.com/prebid-server:v1.0.0 --profile <p> --region <r>
+```
 
 ### Prebid Server Java Container Customization
 
@@ -291,11 +395,7 @@ analytics:
     enabled: ${LOG_ANALYTICS_ENABLED}  # Enables or Disables psdoa analytics integration
 ```
 
-To enable psdoaAnalytics, set LOG_ANALYTICS_ENABLED=true
-
-```bash
-export LOG_ANALYTICS_ENABLED=true
-```
+To enable psdoaAnalytics, deploy with `--enable-log-analytics` or set the `EnableLogAnalytics` CloudFormation parameter to `true`.
 
 ### RTB Fabric Integration
 
@@ -303,7 +403,7 @@ export LOG_ANALYTICS_ENABLED=true
 
 #### How It Works
 
-When RTB Fabric is enabled (`--include-rtb-fabric`), the solution creates the following architecture:
+When RTB Fabric connectivity is enabled (`--simulator-connectivity rtb-fabric`, the default), the solution creates the following architecture:
 
 ```
 Prebid Server VPC                          Bidder Simulator VPC
@@ -317,20 +417,130 @@ Prebid Server VPC                          Bidder Simulator VPC
 └──────────────────────┘                    └─────────────────────┘
 ```
 
-- **Requester Gateway**: Deployed in the Prebid Server VPC. Sends bid requests over HTTPS (port 443) through RTB Fabric.
-- **Responder Gateway**: Deployed in the Bidder Simulator VPC. Receives bid requests over HTTP (port 80) and forwards them to the bidder simulator ALB.
-- **Fabric Link**: Connects the two gateways. Uses asymmetric security — HTTPS from requester to responder, HTTP for responses on the internal AWS network.
+- **Requester Gateway**: Deployed in the Prebid Server VPC via CloudFormation (enabled via `EnableRtbRequesterGateway=true`). Sends bid requests over HTTPS (port 443) through RTB Fabric.
+- **Responder Gateway**: Deployed in the Bidder Simulator VPC via CloudFormation (enabled via `EnableRtbFabric=true` on BidderSimulatorStack). Receives bid requests and forwards them to the simulator ALB.
+- **Fabric Link**: Connects the two gateways. Managed by the `simulator_fabric_link.py` script (not CloudFormation). The script creates the link, waits for it to become active, accepts it from the responder side (same-account simulator), and updates the ECS task definition with the link URL.
+- **WaitForGateway**: A CloudFormation custom resource that polls until the Requester Gateway reaches ACTIVE state before the stack completes.
+
+#### Fabric Link Management (`simulator_fabric_link.py`)
+
+The Fabric Link lifecycle is managed by `deployment/simulator_fabric_link.py`, a Python script using boto3 that operates independently of CloudFormation. This approach provides faster link operations (~30 seconds vs 5-10 minutes for a stack update) and cleaner separation of concerns.
+
+**Dependencies:** Requires `boto3 >= 1.43.0` (for RTB Fabric SDK support). Install via:
+```bash
+pip install -r deployment/requirements-fabric-link.txt
+```
+The `deploy.sh` and `destroy.sh` scripts handle this automatically.
+
+When you deploy with `--deploy-bidding-simulator`, the `deploy.sh` script automatically invokes `simulator_fabric_link.py create` after both stacks are deployed. The script:
+1. Creates the Fabric Link between the Requester and Responder Gateways
+2. Polls with exponential backoff until the link becomes active
+3. Accepts the link from the responder side (same-account simulator links are auto-accepted by the script)
+4. Registers a new ECS task definition revision with the link URL
+5. Triggers a rolling ECS deployment (~30 seconds)
+
+The link ID is persisted in SSM Parameter Store at `/{stack-name}/fabric-link/link-id` so it can be managed across separate script invocations.
+
+**Subcommands:**
+
+```bash
+# Create a Fabric Link
+python3 deployment/simulator_fabric_link.py create \
+  --stack-name prebid-server-deployment-on-aws \
+  --responder-gateway-id rgw-xxx \
+  --profile myprofile \
+  --region us-east-1
+
+# Check status
+python3 deployment/simulator_fabric_link.py status \
+  --stack-name prebid-server-deployment-on-aws \
+  --profile myprofile \
+  --region us-east-1
+
+# Delete a Fabric Link
+python3 deployment/simulator_fabric_link.py delete \
+  --stack-name prebid-server-deployment-on-aws \
+  --profile myprofile \
+  --region us-east-1
+```
+
+| Subcommand | Required Options | Description |
+|------------|-----------------|-------------|
+| `create` | `--stack-name`, `--responder-gateway-id` | Creates a Fabric Link, waits for ACTIVE, accepts it, updates ECS task with link URL. Idempotent — if a link already exists (SSM has a link ID), prints status and exits. |
+| `delete` | `--stack-name` | Deletes the Fabric Link and removes the SSM parameter. Idempotent — if no link exists, exits cleanly. |
+| `status` | `--stack-name` | Prints the current link status, URL, and gateway IDs. |
+
+All subcommands accept optional `--profile` and `--region` for AWS CLI configuration.
 
 #### Connectivity Modes
 
-The solution supports two connectivity modes between Prebid Server and the Bidder Simulator:
+| Mode | deploy.sh flag | BidderSimulatorStack param | Description |
+|------|---------------|---------------------------|-------------|
+| RTB Fabric | `--simulator-connectivity rtb-fabric` (default) | `EnableRtbFabric=true` | Traffic routed through AWS RTB Fabric private network. Fabric Link managed by `simulator_fabric_link.py`. |
+| VPC Peering | `--simulator-connectivity vpc-peering` | `EnableRtbFabric=false` | Direct VPC peering connection. Fallback for regions without RTB Fabric. |
+| Gateway only | `--enable-rtb-requester-gateway` (no simulator) | N/A | Provisions Requester Gateway for manual partner Fabric Link creation. |
 
-| Mode | Flag | Description |
-|------|------|-------------|
-| RTB Fabric | `--include-rtb-fabric` | Traffic routed through AWS RTB Fabric private network. Requires `--deploy-bidding-simulator`. |
-| VPC Peering | (default when simulator is deployed) | Direct VPC peering connection between the two VPCs. Automatically configured with routes and security group rules. |
+When neither mode is applicable (no bidder simulator deployed, no gateway requested), Prebid Server connects to external bidders over the public internet through the NAT gateways.
 
-When neither mode is applicable (no bidder simulator deployed), Prebid Server connects to external bidders over the public internet through the NAT gateways.
+#### VPC Peering Fallback
+
+For regions where RTB Fabric is not available, use VPC peering:
+
+```bash
+./deploy.sh --deploy-bidding-simulator --simulator-connectivity vpc-peering --profile <p> --region <r>
+```
+
+This creates a VPC peering connection between the Prebid Server VPC and the Bidder Simulator VPC with:
+- Peering connection with auto-accept
+- Route table entries in both VPCs
+- Security group ingress rules on the simulator ALB
+
+#### Gateway-Only Scenario (Partner Onboarding)
+
+To provision an RTB Fabric Requester Gateway without deploying the bidder simulator:
+
+```bash
+./deploy.sh --enable-rtb-requester-gateway --profile <p> --region <r>
+```
+
+This is useful when you want to establish RTB Fabric connectivity with external partners. After deployment, create Fabric Links manually using the process described below.
+
+#### Partner Onboarding (Manual Steps)
+
+Connecting to real bidder partners via RTB Fabric is a **manual process** — it is not automated by `simulator_fabric_link.py`. The `simulator_fabric_link.py` script is designed exclusively for the same-account simulator scenario where both gateways are in your account and link acceptance can be automated.
+
+For production partner links, follow these steps:
+
+1. **Create a Fabric Link** using the AWS CLI:
+   ```bash
+   aws rtbfabric create-link \
+     --gateway-id <your-requester-gateway-id> \
+     --peer-gateway-id <partner-responder-gateway-id>
+   ```
+   The Requester Gateway ID is available in the PrebidServerStack CloudFormation outputs (`RequesterGatewayId`).
+
+2. **Share the Link ID with the partner** — provide the link ID returned by `create-link` so the partner can accept it from their side.
+
+3. **Partner accepts the link** — the partner accepts the link from their AWS account using the RTB Fabric console or CLI. The link status transitions to ACTIVE once accepted.
+
+4. **Get the Link URL** once the link is ACTIVE:
+   ```bash
+   aws rtbfabric get-requester-gateway --gateway-id <your-requester-gateway-id>
+   # The Link URL format: https://{domain}/link/{link-id}
+   ```
+
+5. **Update `prebid-config.yaml` in S3** — add the partner's endpoint URL to the Prebid Server configuration in the S3 config bucket (`ContainerImagePrebidSolutionConfigBucket` from stack outputs). Configure the appropriate bidder adapter to use the RTB Fabric link URL as its endpoint.
+
+6. **Force ECS redeployment** to pick up the new configuration:
+   ```bash
+   aws ecs update-service \
+     --cluster <cluster-name> \
+     --service <service-name> \
+     --force-new-deployment
+   ```
+   The cluster and service names are available in the PrebidServerStack CloudFormation outputs.
+
+> **Note:** Unlike the simulator scenario where `simulator_fabric_link.py` handles link creation, acceptance, and ECS task definition updates automatically, partner onboarding requires coordination between two separate AWS accounts. The partner must accept the link from their side before traffic can flow.
 
 ## Next Steps
 
@@ -353,7 +563,7 @@ To delete the deployed solution, use the provided `destroy.sh` script:
 ./destroy.sh --dry-run --profile <your-aws-cli-profile> --region <your-region>
 ```
 
-The script automatically detects which stacks are deployed (Prebid Server, Bidder Simulator) and destroys them in the correct order. RTB Fabric resources (gateways, links) are automatically cleaned up as part of their parent stacks.
+The script automatically detects which stacks are deployed (Prebid Server, Bidder Simulator) and destroys them in the correct order. The script invokes `simulator_fabric_link.py delete` before stack destruction to cleanly remove any Fabric Link. If no link exists or deletion fails, the script continues with stack destruction.
 
 For all options, run `./destroy.sh --help`.
 

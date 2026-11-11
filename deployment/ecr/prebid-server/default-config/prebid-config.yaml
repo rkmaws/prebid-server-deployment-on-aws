@@ -36,13 +36,9 @@ settings:
   enforce-valid-account: false
   generate-storedrequest-bidrequest-id: true
   s3:
-    # These values are loaded from environment variables in the ECS task,
-    # as indicated below:
-    # access-key-id: <-- AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
-    # secret-access-key: <-- AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
-    # endpoint: <-- SETTINGS_S3_ENDPOINT
-    # bucket: <-- SETTINGS_S3_BUCKET
-    # region: <-- SETTINGS_S3_REGION
+    endpoint: ${SETTINGS_S3_ENDPOINT}
+    bucket: ${SETTINGS_S3_BUCKET}
+    region: ${SETTINGS_S3_REGION}
     accounts-dir: stored_accounts
     stored-imps-dir: stored_impressions
     stored-requests-dir: stored_requests
@@ -52,7 +48,7 @@ settings:
     ttl-seconds: 1200 # 20 minutes
     s3-update:
       refresh-rate: 900000 # Refresh every 15 minutes
-      timeout: 5000
+      timeout: 30000
 gdpr:
   default-value: 1
   vendorlist:

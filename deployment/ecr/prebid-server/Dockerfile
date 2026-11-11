@@ -12,6 +12,8 @@
 # -------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Build stage
+# NOTE: musl is upgraded in the deploy stage to address CVE-2026-40200 / CVE-2026-6042.
+# The build stage is not shipped, so only the deploy stage needs the patch.
 FROM public.ecr.aws/docker/library/alpine:3.23.3 AS build
 
 # Build argument to control AMT bidder file inclusion
@@ -89,7 +91,10 @@ RUN mkdir -p /usr/bin && \
     ln -s ${JAVA_HOME}/bin/jps /usr/bin/jps
 
 # Install only required packages in single layer
+# Upgrade zlib to 1.3.2+ to address CVE-2026-27171 (CPU consumption via crc32_combine64)
+# Upgrade musl to 1.2.5-r23+ to address CVE-2026-40200 (High) and CVE-2026-6042 (Low)
 RUN apk --no-cache add curl aws-cli bind-tools openssl && \
+    apk --no-cache upgrade zlib musl musl-utils && \
     rm -rf /var/cache/apk/*
 
 # Set JVM options for DNS resolution

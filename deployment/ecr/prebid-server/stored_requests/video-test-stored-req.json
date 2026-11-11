@@ -1,0 +1,75 @@
+{
+  "id": "video-test-stored-req",
+  "site": {
+    "id": "video-site-001",
+    "name": "Example Video Publisher",
+    "domain": "video.publisher.example.com",
+    "page": "https://video.publisher.example.com/watch/v98765",
+    "cat": ["IAB1", "IAB1-5"],
+    "publisher": {
+      "id": "pub-video-001",
+      "name": "Example Video Network",
+      "domain": "video.publisher.example.com"
+    },
+    "content": {
+      "id": "video-content-001",
+      "title": "Live Sports Highlights",
+      "series": "Sports Weekly",
+      "season": "2026",
+      "episode": 12,
+      "language": "en",
+      "cat": ["IAB17", "IAB17-12"],
+      "len": 1800,
+      "livestream": 0
+    }
+  },
+  "device": {
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "ip": "198.51.100.78",
+    "language": "en",
+    "dnt": 0,
+    "devicetype": 2,
+    "connectiontype": 2,
+    "geo": {
+      "country": "USA",
+      "region": "NY",
+      "metro": "501"
+    }
+  },
+  "user": {
+    "id": "user-video-789",
+    "ext": {
+      "consent": "CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA"
+    }
+  },
+  "at": 1,
+  "tmax": 3000,
+  "cur": ["USD"],
+  "regs": {
+    "coppa": 0,
+    "ext": {
+      "gdpr": 0,
+      "us_privacy": "1YNN"
+    }
+  },
+  "ext": {
+    "prebid": {
+      "targeting": {
+        "pricegranularity": {
+          "precision": 2,
+          "ranges": [
+            {"max": 10, "increment": 0.10},
+            {"max": 25, "increment": 0.50},
+            {"max": 50, "increment": 1.00}
+          ]
+        },
+        "includewinners": true,
+        "includebidderkeys": true
+      },
+      "cache": {
+        "bids": {},
+        "vastxml": {}
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@ from aws_cdk import (
     Duration,
     Aws,
     CfnTag,
+    CfnCondition,
     Fn,
     Stack,
     CfnOutput,
@@ -29,13 +30,33 @@ from aws_cdk import (
 
 class BidderSimulatorStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, include_rtb_fabric: bool = False, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         self._resource_prefix = Aws.STACK_NAME
 
+        # EnableRtbFabric CloudFormation parameter — controls Responder Gateway creation at deploy time
+        self.enable_rtb_fabric_param = CfnParameter(
+            self,
+            "EnableRtbFabric",
+            type="String",
+            allowed_values=["true", "false"],
+            default="true",
+            description="Enable RTB Fabric Responder Gateway creation. Set to 'false' for VPC peering fallback in non-RTB regions."
+        )
+
+        # HasRtbFabric CfnCondition
+        self.has_rtb_fabric = CfnCondition(
+            self,
+            "HasRtbFabric",
+            expression=Fn.condition_equals(self.enable_rtb_fabric_param.value_as_string, "true")
+        )
+
         # Create VPC for bidder simulator (required for ALB deployment)
         self._create_vpc()
+
+         # Create demo website (CloudFront + S3)
+        self._create_demo_website()
 
         self.response_delay_percentage = CfnParameter(
             self,
@@ -89,6 +110,7 @@ class BidderSimulatorStack(Stack):
                     "BID_RESPONSES_TIMEOUT_PERCENTAGE": self.response_timeout_percentage.value_as_string,
                     "A_BID_RESPONSE_DELAY_PROBABILITY": self.response_delay_probability.value_as_string,
                     "A_BID_RESPONSE_TIMEOUT_PROBABILITY": self.response_timeout_probability.value_as_string,
+                    "DEMO_CLOUDFRONT_DOMAIN": self.demo_cloudfront_distribution.domain_name,
                 },
                 description="Simulate a bidding server to send a Bid Response",
                 timeout=Duration.minutes(1),
@@ -100,12 +122,8 @@ class BidderSimulatorStack(Stack):
         # Create Application Load Balancer for internal ALB + Lambda architecture
         self._create_alb()
         
-        # Conditionally create RTB Fabric Responder Gateway
-        if include_rtb_fabric:
-            self._create_responder_gateway()
-
-        # Create demo website (CloudFront + S3)
-        self._create_demo_website()
+        # Always create RTB Fabric Responder Gateway — resources gated by HasRtbFabric CfnCondition
+        self._create_responder_gateway()
 
         # Export VPC ID and ALB security group for cross-stack references
         # These are needed by Prebid Server stack for VPC peering (when RTB Fabric is disabled)
@@ -115,7 +133,6 @@ class BidderSimulatorStack(Stack):
             key="BidderSimulatorVpcId",
             value=self.bidder_vpc.vpc_id,
             description="Bidder Simulator VPC ID for VPC peering",
-            export_name=f"{Aws.STACK_NAME}-BidderSimulatorVpcId",
         )
         
         CfnOutput(
@@ -124,15 +141,29 @@ class BidderSimulatorStack(Stack):
             key="BidderSimulatorAlbSecurityGroupId",
             value=self.alb_security_group.security_group_id,
             description="Bidder Simulator ALB Security Group ID for VPC peering",
-            export_name=f"{Aws.STACK_NAME}-BidderSimulatorAlbSecurityGroupId",
         )
         
-        # Store private subnet route table IDs for VPC peering route creation
-        # The Prebid Server stack needs these to add routes in the Bidder Simulator VPC
+        # Store and export private subnet route table IDs for VPC peering route creation
         private_subnets = self.bidder_vpc.select_subnets(
             subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
         )
         self.private_route_table_ids = [subnet.route_table.route_table_id for subnet in private_subnets.subnets]
+
+        CfnOutput(
+            self,
+            "BidderSimulatorRouteTableId1",
+            key="BidderSimulatorRouteTableId1",
+            value=self.private_route_table_ids[0] if len(self.private_route_table_ids) > 0 else "",
+            description="First private subnet route table ID from BidderSimulatorStack",
+        )
+
+        CfnOutput(
+            self,
+            "BidderSimulatorRouteTableId2",
+            key="BidderSimulatorRouteTableId2",
+            value=self.private_route_table_ids[1] if len(self.private_route_table_ids) > 1 else "",
+            description="Second private subnet route table ID from BidderSimulatorStack",
+        )
 
     def _create_vpc(self) -> None:
         """
@@ -255,18 +286,9 @@ class BidderSimulatorStack(Stack):
 
     def _create_responder_gateway(self) -> None:
         """
-        Create RTB Fabric Responder Gateway.
+        Create RTB Fabric Responder Gateway (conditional on HasRtbFabric).
 
-        The gateway enables the bidder simulator to receive bid requests 
-        through AWS RTB Fabric's private network.
-
-        Gateway Configuration:
-        - Attached to bidder simulator VPC
-        - Configured for IPv4 traffic only (HTTP on port 80)
-        - Security group allows HTTP (80) from RTB Fabric network
-        - Security group allows HTTP (80) to ALB
-
-        Requirements: 4.2, 4.3, 4.4, 4.5
+        All resources are gated by the HasRtbFabric CfnCondition.
         """
         # Create security group for Responder Gateway
         self.responder_gateway_security_group = ec2.SecurityGroup(
@@ -276,6 +298,9 @@ class BidderSimulatorStack(Stack):
             description="Security group for RTB Fabric Responder Gateway",
             allow_all_outbound=True,
         )
+        # Gate the security group with condition
+        sg_l1 = self.responder_gateway_security_group.node.default_child
+        sg_l1.cfn_options.condition = self.has_rtb_fabric
 
         # Allow HTTP (80) from RTB Fabric network
         self.responder_gateway_security_group.add_ingress_rule(
@@ -284,19 +309,25 @@ class BidderSimulatorStack(Stack):
             description="Allow HTTP from RTB Fabric network",
         )
 
-        # Allow HTTP (80) from Responder Gateway to ALB
-        self.alb_security_group.add_ingress_rule(
-            peer=self.responder_gateway_security_group,
-            connection=ec2.Port.tcp(80),
+        # Allow HTTP (80) from Responder Gateway to ALB (conditional ingress rule)
+        alb_ingress_from_gw = ec2.CfnSecurityGroupIngress(
+            self,
+            "AlbIngressFromResponderGw",
+            group_id=self.alb_security_group.security_group_id,
+            source_security_group_id=self.responder_gateway_security_group.security_group_id,
+            ip_protocol="tcp",
+            from_port=80,
+            to_port=80,
             description="Allow HTTP from RTB Fabric Responder Gateway",
         )
+        alb_ingress_from_gw.cfn_options.condition = self.has_rtb_fabric
 
         # Get private subnets for gateway attachment
         private_subnets = self.bidder_vpc.select_subnets(
             subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
         )
 
-        # Create RTB Fabric Responder Gateway using the typed L1 construct
+        # Create RTB Fabric Responder Gateway
         self.responder_gateway = rtbfabric.CfnResponderGateway(
             self,
             "ResponderGateway",
@@ -309,22 +340,25 @@ class BidderSimulatorStack(Stack):
             domain_name=self.alb.load_balancer_dns_name,
             tags=[CfnTag(key="Name", value=f"{Aws.STACK_NAME}-BidderSimulator-ResponderGateway")],
         )
+        self.responder_gateway.cfn_options.condition = self.has_rtb_fabric
 
-        CfnOutput(
+        responder_gw_id_output = CfnOutput(
             self,
             "ResponderGatewayId",
             key="ResponderGatewayId",
             value=self.responder_gateway.attr_gateway_id,
             description="RTB Fabric Responder Gateway ID",
         )
+        responder_gw_id_output.condition = self.has_rtb_fabric
 
-        CfnOutput(
+        responder_gw_arn_output = CfnOutput(
             self,
             "ResponderGatewayArn",
             key="ResponderGatewayArn",
             value=self.responder_gateway.attr_arn,
             description="RTB Fabric Responder Gateway ARN",
         )
+        responder_gw_arn_output.condition = self.has_rtb_fabric
 
 
     def _create_demo_website(self) -> None:
@@ -374,11 +408,28 @@ class BidderSimulatorStack(Stack):
 
         # Deploy demo static files to S3
         demo_path = Path(__file__).absolute().parents[1] / "demo"
+        
+        # Deploy demo website contents to bucket root
+        # prune=False prevents this deployment from deleting files uploaded
+        # by other BucketDeployment constructs targeting the same bucket.
         s3_deployment.BucketDeployment(
             self,
             "DemoWebsiteDeployment",
-            sources=[s3_deployment.Source.asset(str(demo_path))],
+            sources=[s3_deployment.Source.asset(str(demo_path / "dist"))],
             destination_bucket=self.demo_bucket,
+            prune=False,
+            memory_limit=512,
+        )
+        
+        # Deploy assets folder to bucket assets/ folder
+        s3_deployment.BucketDeployment(
+            self,
+            "DemoAssetsDeployment",
+            sources=[s3_deployment.Source.asset(str(demo_path / "assets"))],
+            destination_bucket=self.demo_bucket,
+            destination_key_prefix="assets/",
+            prune=False,
+            memory_limit=512,
         )
 
         CfnOutput(

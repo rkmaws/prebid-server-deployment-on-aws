@@ -71,8 +71,9 @@ class PrebidServerStack(SolutionStack):
         # Create bucket for storing prebid application settings
         stored_requests_bucket = self.create_stored_requests_bucket()
 
-        # Determine if bidder simulator is deployed based on simulator_endpoint or RTB Fabric
-        deploy_bidding_simulator = simulator_endpoint is not None or include_rtb_fabric
+        # Determine if bidder simulator is deployed — read from CDK context
+        # (deploy.sh always passes --context deployBiddingSimulator=true when building with simulator)
+        deploy_bidding_simulator = self.node.try_get_context("deployBiddingSimulator") in [True, 'true', 'True']
 
         container_image_construct = ContainerImageConstruct(self, "ContainerImage", self.solutions_template_options,
                                                             stored_requests_bucket, deploy_bidding_simulator)
@@ -85,30 +86,20 @@ class PrebidServerStack(SolutionStack):
                                      container_image_construct.docker_configs_manager_bucket,
                                      stored_requests_bucket)
 
-        # Conditionally create RTB Fabric Requester Gateway
-        # This must be created before ECS tasks so the gateway can be referenced
-        # in the task configuration if RTB Fabric is enabled
-        rtb_fabric = None
-        if include_rtb_fabric:
-            rtb_fabric = RtbFabricConstruct(self, "RtbFabric", vpc_construct, responder_gateway_id)
-        
-        # Conditionally create VPC peering connection (when RTB Fabric is disabled)
-        # This enables Prebid Server to reach Bidder Simulator through VPC peering
-        if not include_rtb_fabric and deploy_bidding_simulator:
-            VpcPeeringConstruct(self, "VpcPeering", vpc_construct, bidder_simulator_vpc_id, bidder_simulator_alb_sg_id, bidder_simulator_route_table_ids)
-        
-        # Overwrite simulator_endpoint with Fabric Link URL if RTB Fabric is enabled
-        # Format: https://{requester-gateway-domain-name}/link/{link-id}
-        # This allows ECS tasks to route traffic through RTB Fabric instead of directly to the bidder simulator
-        if rtb_fabric and hasattr(rtb_fabric, 'fabric_link'):
-            requester_gateway_domain = rtb_fabric.requester_gateway.attr_domain_name
-            link_id = rtb_fabric.fabric_link.attr_link_id
-            simulator_endpoint = f"https://{requester_gateway_domain}/link/{link_id}"
+        # Always create RTB Fabric construct — resources gated by CfnConditions
+        rtb_fabric = RtbFabricConstruct(self, "RtbFabric", vpc_construct, stack_params)
+
+        # Always create VPC Peering construct — resources gated by UseVpcPeering CfnCondition
+        VpcPeeringConstruct(self, "VpcPeering", vpc_construct, stack_params)
 
         # Create ECS Cluster
         prebid_cluster = ecs.Cluster(
             self, "PrebidCluster", vpc=vpc_construct.prebid_vpc, container_insights=True
         )
+
+        # ECS Cluster output (used by simulator-fabric-link.sh)
+        CfnOutput(self, "EcsClusterName", key="EcsClusterName",
+                  value=prebid_cluster.cluster_name, description="ECS Cluster Name")
 
         # Create DataSync resources for monitoring tasks in CloudWatch
         datasync_monitor = DataSyncMonitoring(self, "DataSyncMonitor")
@@ -237,7 +228,7 @@ class PrebidServerStack(SolutionStack):
             elasticache_cluster_id,
             op_metrics_construct.operational_metrics_layer,
             simulator_endpoint=simulator_endpoint,
-            enable_log_analytics=enable_log_analytics
+            enable_log_analytics=enable_log_analytics,
         )
 
         # Deploy this construct when the user wants to use their own CDN.
@@ -261,7 +252,7 @@ class PrebidServerStack(SolutionStack):
             elasticache_cluster_id,
             op_metrics_construct.operational_metrics_layer,
             simulator_endpoint=simulator_endpoint,
-            enable_log_analytics=enable_log_analytics
+            enable_log_analytics=enable_log_analytics,
         )
 
     def create_access_logs_bucket(self) -> s3.Bucket:
@@ -271,8 +262,7 @@ class PrebidServerStack(SolutionStack):
         access_logs_bucket = s3.Bucket(
             self,
             id="StoredRequestsAccessLogsBucket",
-            object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
-            access_control=s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
+            object_ownership=s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
             removal_policy=RemovalPolicy.RETAIN,
@@ -322,8 +312,7 @@ class PrebidServerStack(SolutionStack):
         bucket = s3.Bucket(
             self,
             id="Bucket",
-            object_ownership=s3.ObjectOwnership.OBJECT_WRITER,
-            access_control=s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
+            object_ownership=s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             encryption=s3.BucketEncryption.S3_MANAGED,
             removal_policy=RemovalPolicy.RETAIN,

@@ -64,7 +64,8 @@ class ALBEntryDeployment(Construct):
                                               docker_configs_manager_bucket,
                                               stored_requests_bucket,
                                               simulator_endpoint=simulator_endpoint,
-                                              enable_analytics=enable_log_analytics)
+                                              enable_analytics=enable_log_analytics,
+                                              stack_params=stack_params)
 
         # ALB security group
         alb_sec_group = ec2.SecurityGroup(self, "Prebid-ALB-security-group", vpc=prebid_vpc)  # NOSONAR
@@ -123,6 +124,7 @@ class ALBEntryDeployment(Construct):
             prebid_task_subnets,
             ecs_task_construct.prebid_container,
             efs_construct.prebid_fs,
+            alb_sec_group=alb_sec_group,
         )
 
         ecs_task_construct.prebid_container.add_environment(

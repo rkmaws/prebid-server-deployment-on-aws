@@ -80,7 +80,7 @@ def mapping_solution(template):
         {
             'Data': {
                 'ID': "SO0248",
-                'Version': "v1.3.0",
+                'Version': "v1.4.0",
                 'SendAnonymizedData': 'Yes'
             }
         }
@@ -93,7 +93,7 @@ def mapping_source_code(template):
         {
             'General': {
                 'S3Bucket': "BUCKET_NAME",
-                'KeyPrefix': 'Guidance for Deploying a Prebid Server on AWS/v1.3.0'
+                'KeyPrefix': 'Guidance for Deploying a Prebid Server on AWS/v1.4.0'
             }
         }
     )
@@ -153,10 +153,7 @@ def metrics_etl_job(template):
                     'Fn::Join': [
                         '',
                         [
-                            {
-                                'Ref': 'AWS::StackName'
-                            },
-                            '-',
+                            'prebid-server-',
                             {
                                 'Ref': 'AWS::Region'
                             },
@@ -177,7 +174,7 @@ def metrics_etl_job(template):
             "ExecutionProperty": {
                 "MaxConcurrentRuns": 10
             },
-            'GlueVersion': '4.0',
+            'GlueVersion': '5.0',
             'Name': {
                 'Fn::Join': [
                     '',
@@ -1168,10 +1165,7 @@ def metrics_etl_meter_table(template):
             'Fn::Join': [
                 '',
                 [
-                    {
-                        'Ref': 'AWS::StackName'
-                    },
-                    '-',
+                    'prebid-server-',
                     {
                         'Ref': 'AWS::Region'
                     },
@@ -1264,10 +1258,7 @@ def metrics_etl_histogram_table(template):
             'Fn::Join': [
                 '',
                 [
-                    {
-                        'Ref': 'AWS::StackName'
-                    },
-                    '-',
+                    'prebid-server-',
                     {
                         'Ref': 'AWS::Region'
                     },
@@ -1380,10 +1371,7 @@ def metrics_etl_guage_table(template):
             'Fn::Join': [
                 '',
                 [
-                    {
-                        'Ref': 'AWS::StackName'
-                    },
-                    '-',
+                    'prebid-server-',
                     {
                         'Ref': 'AWS::Region'
                     },

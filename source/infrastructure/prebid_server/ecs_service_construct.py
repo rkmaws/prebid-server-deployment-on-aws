@@ -23,6 +23,7 @@ class ECSServiceConstruct(Construct):
             prebid_task_subnets,
             prebid_container,
             prebid_fs,
+            alb_sec_group=None,
     ) -> None:
         """
         This construct creates EFS resources.
@@ -79,6 +80,14 @@ class ECSServiceConstruct(Construct):
         fargate_service.connections.allow_to(
             prebid_fs, ec2.Port.tcp(stack_constants.EFS_PORT)
         )
+
+        # Allow ALB to reach ECS tasks on the actual HTTPS container port
+        if alb_sec_group:
+            fargate_service.connections.allow_from(
+                alb_sec_group,
+                ec2.Port.tcp(stack_constants.CONTAINER_PORT),
+                "Allow ALB to reach containers on HTTPS port",
+            )
 
         # Add health check
         self.alb_target_group.configure_health_check(

@@ -106,6 +106,11 @@ echo "--------------------------------------------------------------------------
 echo "[Test] Run pytest with coverage"
 echo "------------------------------------------------------------------------------"
 cd $source_dir
+
+# Ensure demo dist directory exists for BidderSimulatorStack synthesis during tests
+# (the actual demo build happens in deploy.sh, but tests need the directory to exist)
+mkdir -p $source_dir/loadtest/demo/dist
+
 # setup coverage report path
 coverage_report_path=$tests_folder/coverage-reports/source.coverage.xml
 echo "coverage report path set to $coverage_report_path"

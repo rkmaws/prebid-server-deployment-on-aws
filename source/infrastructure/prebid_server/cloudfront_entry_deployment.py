@@ -65,7 +65,8 @@ class CloudFrontEntryDeployment(Construct):
                                               docker_configs_manager_bucket,
                                               stored_requests_bucket,
                                               simulator_endpoint=simulator_endpoint,
-                                              enable_analytics=enable_log_analytics)
+                                              enable_analytics=enable_log_analytics,
+                                              stack_params=stack_params)
 
         # ALB security group
         alb_sec_group = ec2.SecurityGroup(self, "Prebid-ALB-security-group", vpc=prebid_vpc)  # NOSONAR
@@ -118,7 +119,8 @@ class CloudFrontEntryDeployment(Construct):
                                                     ecs_task_construct.prebid_task_definition,
                                                     prebid_task_subnets,
                                                     ecs_task_construct.prebid_container,
-                                                    efs_construct.prebid_fs)
+                                                    efs_construct.prebid_fs,
+                                                    alb_sec_group=alb_sec_group)
 
         # Create CloudFront and WAF resources, and prefix list id.
         cloudfront_waf_construct = CloudFrontWafConstruct(self, "CloudFrontWaf", prebid_alb, x_header_secret_value)
@@ -278,6 +280,10 @@ class CloudFrontEntryDeployment(Construct):
         efs_cleanup.efs_file_del_lambda_function.add_layers(datasync_s3_layer)
 
         CfnOutput(self, "Prebid-EFSId", value=efs_construct.prebid_fs.file_system_id, description="Prebid EFS Id")
+
+        # ECS Service output (used by simulator-fabric-link.sh)
+        CfnOutput(self, "EcsServiceName", key="EcsServiceName",
+                  value=ecs_service_construct.service_name, description="ECS Service Name")
 
         # CloudWatch Alarms
         CloudwatchAlarms(

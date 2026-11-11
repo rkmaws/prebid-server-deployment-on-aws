@@ -1,0 +1,249 @@
+{
+  "id": "openrtb2-banner-outstream-test",
+  "imp": [
+    {
+      "id": "banner_imp_1",
+      "banner": {
+        "w": 300,
+        "h": 250,
+        "format": [
+          {
+            "w": 300,
+            "h": 250
+          },
+          {
+            "w": 320,
+            "h": 50
+          }
+        ],
+        "pos": 1,
+        "api": [
+          3,
+          5
+        ],
+        "btype": [
+          4
+        ],
+        "battr": [
+          1,
+          2
+        ]
+      },
+      "bidfloor": 0.5,
+      "bidfloorcur": "USD",
+      "instl": 0,
+      "secure": 1,
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "amt": {
+              "placementId": "banner-atf-300x250",
+              "bidFloor": 0.5,
+              "bidCeiling": 25.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "banner_imp_2",
+      "banner": {
+        "w": 728,
+        "h": 90,
+        "format": [
+          {
+            "w": 728,
+            "h": 90
+          },
+          {
+            "w": 970,
+            "h": 90
+          }
+        ],
+        "pos": 1,
+        "api": [
+          3,
+          5
+        ],
+        "battr": [
+          1,
+          2
+        ]
+      },
+      "bidfloor": 0.75,
+      "bidfloorcur": "USD",
+      "secure": 1,
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "amt": {
+              "placementId": "banner-leaderboard-728x90",
+              "bidFloor": 0.75,
+              "bidCeiling": 30.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "outstream_video_imp_1",
+      "video": {
+        "mimes": [
+          "video/mp4",
+          "video/webm",
+          "video/ogg"
+        ],
+        "protocols": [
+          2,
+          5,
+          3,
+          6
+        ],
+        "w": 640,
+        "h": 480,
+        "startdelay": 0,
+        "placement": 3,
+        "linearity": 1,
+        "minduration": 5,
+        "maxduration": 30,
+        "skip": 1,
+        "skipmin": 5,
+        "skipafter": 5,
+        "api": [
+          1,
+          2
+        ],
+        "playbackmethod": [
+          2
+        ],
+        "delivery": [
+          2
+        ],
+        "pos": 7,
+        "battr": [
+          1,
+          2
+        ]
+      },
+      "bidfloor": 2.0,
+      "bidfloorcur": "USD",
+      "secure": 1,
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "amt": {
+              "placementId": "outstream-in-article",
+              "bidFloor": 2.0,
+              "bidCeiling": 50.0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "site": {
+    "id": "site-001",
+    "name": "Example Publisher",
+    "domain": "publisher.example.com",
+    "page": "https://publisher.example.com/article/12345",
+    "ref": "https://www.google.com/search?q=example",
+    "cat": [
+      "IAB1",
+      "IAB1-1"
+    ],
+    "publisher": {
+      "id": "pub-001",
+      "name": "Example Media Group",
+      "domain": "publisher.example.com"
+    },
+    "content": {
+      "id": "content-001",
+      "title": "Breaking News Article",
+      "language": "en",
+      "cat": [
+        "IAB12"
+      ]
+    }
+  },
+  "device": {
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "ip": "203.0.113.42",
+    "language": "en",
+    "dnt": 0,
+    "lmt": 0,
+    "os": "macOS",
+    "osv": "14.0",
+    "devicetype": 2,
+    "make": "Apple",
+    "model": "Macintosh",
+    "connectiontype": 2,
+    "js": 1,
+    "pxratio": 2.0,
+    "geo": {
+      "lat": 37.7749,
+      "lon": -122.4194,
+      "country": "USA",
+      "region": "CA",
+      "metro": "807",
+      "city": "San Francisco",
+      "zip": "94103",
+      "type": 2
+    }
+  },
+  "user": {
+    "id": "user-abc-123",
+    "buyeruid": "buyer-uid-456",
+    "ext": {
+      "consent": "CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA"
+    }
+  },
+  "at": 1,
+  "tmax": 3000,
+  "cur": [
+    "USD"
+  ],
+  "source": {
+    "fd": 1,
+    "tid": "txn-banner-outstream-001"
+  },
+  "regs": {
+    "coppa": 0,
+    "ext": {
+      "gdpr": 0,
+      "us_privacy": "1YNN"
+    }
+  },
+  "ext": {
+    "prebid": {
+      "targeting": {
+        "pricegranularity": {
+          "precision": 2,
+          "ranges": [
+            {
+              "max": 5,
+              "increment": 0.05
+            },
+            {
+              "max": 10,
+              "increment": 0.1
+            },
+            {
+              "max": 20,
+              "increment": 0.5
+            }
+          ]
+        },
+        "includewinners": true,
+        "includebidderkeys": true
+      },
+      "cache": {
+        "bids": {},
+        "vastxml": {}
+      },
+      "channel": {
+        "name": "web"
+      },
+      "auctiontimestamp": 1700000000000
+    }
+  }
+}

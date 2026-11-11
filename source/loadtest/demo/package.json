@@ -1,0 +1,24 @@
+{
+  "name": "prebid-server-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prebid Server demonstration website with locally bundled dependencies",
+   "scripts": {
+    "build": "webpack --mode production",
+    "serve": "webpack serve --mode development --open"
+  },
+  "devDependencies": {
+    "css-loader": "^7.1.4",
+    "html-webpack-plugin": "^5.6.6",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "dependencies": {
+    "in-renderer-js": "^1.2.3",
+    "prebid.js": "^10.26.0",
+    "video.js": "^5.4.4",
+    "videojs-vast-vpaid": "^3.0.0-beta.8"
+  }
+}

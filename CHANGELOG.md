@@ -5,7 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2025-03-18
+## [1.4.0] - 2026-06-09
+
+### Added
+- CloudFormation parameter-driven deployment (all runtime config via CFN parameters, no CDK context)
+- Shell wrapper `deployment/simulator-fabric-link.sh` for RTB Fabric Link operations
+- ECS stack outputs (EcsClusterName, EcsServiceName) for operational tooling
+- VPC peering construct for bidding simulator connectivity (fallback for non-RTB regions)
+- Finch container runtime support in deploy.sh with ECR public and private registry authentication
+- Pre-built container image option via `--container-image` flag in deploy.sh
+- npm-based build system for demo website with locally bundled JavaScript dependencies
+- Standalone build-demo.sh script for independent demo building and testing
+- Local npm serve support for demo testing (`npm run serve`)
+- Migration guide (`docs/migration-guide-v1.3-to-v1.4.md`)
+- VAST instream video and outstream test request files for functional testing
+- Video endpoint configuration and test coverage
+
+### Security
+- **Upgraded Prebid Server Java to v3.43.0** to address GHSA-4p3g-4hcj-wpvx (Critical 10.0 CVSS — bidder adapter hostname forgery allowing SSRF)
+- Upgraded Spring Boot to 3.5.14 to address CVE-2026-40973 (ApplicationTemp predictable directory hijack)
+- Removed spring-framework.version override (Boot 3.5.14 manages 6.2.15+ natively)
+- Updated urllib3 to >=2.6.3 to address CVE-2026-21441, CVE-2025-66471, CVE-2025-66418
+- Updated Werkzeug to >=3.1.5 to address CVE-2026-21860, CVE-2025-66221
+- Updated pip upgrade in build processes to address CVE-2025-8869
+- Upgraded Netty to 4.2.13.Final to address CVE-2026-33870, CVE-2026-33871, CVE-2026-41417, CVE-2025-67735
+- Upgraded Vert.x to 4.5.24 to address CVE-2026-1002 and CVE-2026-6860
+- Upgraded musl to address CVE-2026-40200 and CVE-2026-6042
+- Upgraded zlib to address CVE-2026-27171
+- Bumped cryptography and Python version for CVE remediation
+- Fixed CVE-2026-24515, CVE-2026-25210, CVE-2025-46394, CVE-2024-58251
+
+### Changed
+- ECS task default configuration changed to 2 vCPU / 4 GB (CPU-optimized for bid processing)
+- Prebid Server Java upgraded from v3.28.0 to v3.43.0
+- Spring Boot upgraded to 3.5.14 via Maven property override (aligned with PBS-Java 3.43.0 parent pom)
+- Vert.x upgraded to 4.5.24 via Maven property override
+- Netty upgraded to 4.2.13.Final via Maven property override
+- All runtime configuration migrated from CDK context to CloudFormation parameters with CfnConditions
+- Decoupled BidderSimulator and RTB Fabric Link management moved from CloudFormation custom resource to standalone Python script
+- Demo website migrated from CDN dependencies to locally bundled npm packages (video.js 8.23.8, videojs-contrib-ads 7.4.0, @dailymotion/vast-client 4.0.0, in-renderer-js 1.2.3, prebid.js 10.26.0)
+- Demo build integrated into deploy.sh workflow (runs automatically when DEPLOY_BIDDING_SIMULATOR=true)
+- Demo HTML/JS updated to reference local vendor/ paths instead of CDN URLs
+- BucketDeployment Lambda memory increased to 512 MB and exclude patterns optimized for faster deployments
+- Glue database name forced to lowercase to avoid nested stack uppercase issues
+- Bidder Simulator endpoint defaults to `https://localhost/not-configured` placeholder when not set
+- Architecture diagram updated
+- README rewritten for new deployment scenarios and container image documentation
+
+### Fixed
+- Fixed test_auction_request assertions to match updated impression IDs and bid prices
+- Fixed AcceptFabricLink role default policy gated with CfnCondition
+- Fixed S3 bucket ACL compatibility for CDK 2.236+
+- Fixed port 8443 security group rule between ALB and ECS
+- Fixed banner bid dimensions to match impression requested sizes
+- Fixed demo BucketDeployment prune=False to prevent asset deletion
+- Replaced inaccessible Big Buck Bunny video URL with stable W3C Sintel trailer
+
+## [1.3.0] - 2025-02-05
 
 ### Added
 - RTB Fabric integration with requester and responder gateways

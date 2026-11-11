@@ -227,7 +227,19 @@ if [ "$DRY_RUN" = "true" ]; then
     exit 0
 fi
 
-# Step 5: Destroy stacks in correct order
+# Step 5: Delete Fabric Link before stack destruction
+if [ "$PREBID_STACK_EXISTS" = "true" ]; then
+    print_step "Deleting Fabric Link (if exists)..."
+    pip install -q -r "$PROJECT_ROOT/deployment/requirements-fabric-link.txt" 2>&1 | grep -v "already satisfied" || true
+    python3 "$PROJECT_ROOT/deployment/simulator_fabric_link.py" delete \
+        --stack-name "$PREBID_STACK_NAME" \
+        ${AWS_PROFILE:+--profile "$AWS_PROFILE"} \
+        ${AWS_REGION:+--region "$AWS_REGION"} || \
+        print_warn "Fabric Link deletion failed or no link exists (continuing)"
+    echo ""
+fi
+
+# Step 6: Destroy stacks in correct order
 print_step "Starting stack destruction..."
 echo ""
 
@@ -279,7 +291,7 @@ if [ "$SIMULATOR_STACK_EXISTS" = "true" ]; then
     echo ""
 fi
 
-# Step 6: Verify all stacks are destroyed
+# Step 7: Verify all stacks are destroyed
 print_step "Verifying stack destruction..."
 
 VERIFICATION_FAILED="false"
@@ -300,7 +312,7 @@ if [ "$VERIFICATION_FAILED" = "true" ]; then
     exit 1
 fi
 
-# Step 7: Success message
+# Step 8: Success message
 echo ""
 print_info "=========================================="
 print_info "All stacks successfully destroyed!"

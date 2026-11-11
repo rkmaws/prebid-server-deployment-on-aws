@@ -25,3 +25,25 @@ The demo page loads [./app.js](./app.js) which will automatically retrieve the P
   * **instream_video_imp_1**: 640x480 instream video ad unit (preroll in videojs player)
 
 You should see all 4 ad units rendering immediately after the page loaded.
+
+## Local Development and Testing
+
+1. Install npm dependencies
+```
+npm install
+```
+
+2. Build
+```
+npm run build
+```
+
+3. Run local web server
+```
+npm run serve
+```
+
+4. In your web browser enter the following
+```
+http://localhost:8080?prebidserver=<PrebidCloudFrontDistributionEndpoint>
+```

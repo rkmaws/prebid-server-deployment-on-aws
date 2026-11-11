@@ -1,0 +1,222 @@
+{
+  "id": "openrtb2-instream-video-test",
+  "imp": [
+    {
+      "id": "instream_video_imp_1",
+      "video": {
+        "mimes": [
+          "video/mp4",
+          "video/webm"
+        ],
+        "protocols": [
+          2,
+          3,
+          5,
+          6
+        ],
+        "w": 1920,
+        "h": 1080,
+        "startdelay": 0,
+        "placement": 1,
+        "linearity": 1,
+        "minduration": 5,
+        "maxduration": 30,
+        "skip": 1,
+        "skipmin": 5,
+        "skipafter": 5,
+        "api": [
+          1,
+          2
+        ],
+        "playbackmethod": [
+          1,
+          3
+        ],
+        "delivery": [
+          2
+        ],
+        "pos": 1,
+        "battr": [
+          1,
+          2
+        ]
+      },
+      "bidfloor": 5.0,
+      "bidfloorcur": "USD",
+      "secure": 1,
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "amt": {
+              "placementId": "instream-preroll-1080p",
+              "bidFloor": 5.0,
+              "bidCeiling": 75.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "instream_video_imp_2",
+      "video": {
+        "mimes": [
+          "video/mp4",
+          "video/webm"
+        ],
+        "protocols": [
+          2,
+          3,
+          5,
+          6
+        ],
+        "w": 1920,
+        "h": 1080,
+        "startdelay": 900,
+        "placement": 1,
+        "linearity": 1,
+        "minduration": 15,
+        "maxduration": 60,
+        "skip": 0,
+        "api": [
+          1,
+          2
+        ],
+        "playbackmethod": [
+          1,
+          3
+        ],
+        "delivery": [
+          2
+        ],
+        "pos": 1,
+        "battr": [
+          1,
+          2
+        ]
+      },
+      "bidfloor": 8.0,
+      "bidfloorcur": "USD",
+      "secure": 1,
+      "ext": {
+        "prebid": {
+          "bidder": {
+            "amt": {
+              "placementId": "instream-midroll-1080p",
+              "bidFloor": 8.0,
+              "bidCeiling": 100.0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "site": {
+    "id": "video-site-001",
+    "name": "Example Video Publisher",
+    "domain": "video.publisher.example.com",
+    "page": "https://video.publisher.example.com/watch/v98765",
+    "cat": [
+      "IAB1",
+      "IAB1-5"
+    ],
+    "publisher": {
+      "id": "pub-video-001",
+      "name": "Example Video Network",
+      "domain": "video.publisher.example.com"
+    },
+    "content": {
+      "id": "video-content-001",
+      "title": "Live Sports Highlights",
+      "series": "Sports Weekly",
+      "season": "2026",
+      "episode": 12,
+      "language": "en",
+      "cat": [
+        "IAB17",
+        "IAB17-12"
+      ],
+      "len": 1800,
+      "livestream": 0,
+      "sourcerelationship": 1
+    }
+  },
+  "device": {
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "ip": "198.51.100.78",
+    "language": "en",
+    "dnt": 0,
+    "lmt": 0,
+    "os": "Windows",
+    "osv": "10",
+    "devicetype": 2,
+    "connectiontype": 2,
+    "js": 1,
+    "pxratio": 1.0,
+    "geo": {
+      "lat": 40.7128,
+      "lon": -74.006,
+      "country": "USA",
+      "region": "NY",
+      "metro": "501",
+      "city": "New York",
+      "zip": "10001",
+      "type": 2
+    }
+  },
+  "user": {
+    "id": "user-video-789",
+    "buyeruid": "buyer-video-uid-012",
+    "ext": {
+      "consent": "CPXxRfAPXxRfAAfKABENB-CgAAAAAAAAAAYgAAAAAAAA"
+    }
+  },
+  "at": 1,
+  "tmax": 3000,
+  "cur": [
+    "USD"
+  ],
+  "source": {
+    "fd": 1,
+    "tid": "txn-instream-video-001"
+  },
+  "regs": {
+    "coppa": 0,
+    "ext": {
+      "gdpr": 0,
+      "us_privacy": "1YNN"
+    }
+  },
+  "ext": {
+    "prebid": {
+      "targeting": {
+        "pricegranularity": {
+          "precision": 2,
+          "ranges": [
+            {
+              "max": 10,
+              "increment": 0.1
+            },
+            {
+              "max": 25,
+              "increment": 0.5
+            },
+            {
+              "max": 50,
+              "increment": 1.0
+            }
+          ]
+        },
+        "includewinners": true,
+        "includebidderkeys": true
+      },
+      "cache": {
+        "bids": {},
+        "vastxml": {}
+      },
+      "channel": {
+        "name": "video"
+      },
+      "auctiontimestamp": 1700000000000
+    }
+  }
+}

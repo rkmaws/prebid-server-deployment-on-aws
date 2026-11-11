@@ -4,7 +4,7 @@
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from os import getenv
 
 import requests
@@ -46,7 +46,7 @@ def send_metrics(event, _):
         payload = {
             "Solution": resource_properties["Solution"],
             "UUID": random_id,
-            "TimeStamp": datetime.utcnow().isoformat(),
+            "TimeStamp": datetime.now(UTC).isoformat(),
             "Data": _sanitize_data(event),
         }
 

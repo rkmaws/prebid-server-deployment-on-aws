@@ -1,10 +1,12 @@
 {
   "_comment_dependencies": "Dependency versions below are pinned for CVE mitigation. When upgrading, verify these versions still address current CVEs:",
-  "_comment_netty": "netty.version=4.2.5.Final addresses CVE-2025-58056 and related Netty vulnerabilities",
+  "_comment_netty": "netty.version=4.2.13.Final addresses CVE-2026-33870, CVE-2026-33871, CVE-2026-41417, CVE-2025-67735, GHSA-cm33, GHSA-57rv, GHSA-rwm7, GHSA-mj4r, GHSA-f6hv, GHSA-38f8, GHSA-xxqh, GHSA-m4cv and related Netty vulnerabilities",
+  "_comment_vertx": "vertx.version=4.5.24 addresses CVE-2026-1002 and CVE-2026-6860 (Vert.x TLS wildcard SNI bypass)",
   "_comment_commons_lang3": "commons-lang3.version=3.18.0 addresses CVE-2024-47554 in Apache Commons Lang",
-  "_comment_spring_framework": "spring-framework.version=6.2.11 addresses multiple Spring Framework CVEs",
-  "_comment_spring_boot": "spring.boot.version=3.4.5 addresses Spring Boot security vulnerabilities",
-  "GIT_TAG_VERSION": "3.28.0",
+  "_comment_jackson": "jackson-bom.version=2.21.1 addresses GHSA-72hv-8253-57qq in jackson-core async JSON parser bypassing maxNumberLength (DoS via memory/CPU exhaustion)",
+  "_comment_spring_boot": "spring-boot.version=3.5.14 addresses CVE-2026-40973 (ApplicationTemp predictable directory hijack). Must stay in 3.5.x lineage to match PBS-Java 3.43.0 parent pom.",
+  "_comment_security": "GIT_TAG_VERSION=3.43.0 includes GHSA-4p3g-4hcj-wpvx fix (bidder adapter hostname forgery, Critical 10.0 CVSS) via PR #4522",
+  "GIT_TAG_VERSION": "3.43.0",
   "GIT_REPO_URL": "https://github.com/prebid/prebid-server-java",
-  "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dcheckstyle.skip -Dnetty.version=4.2.5.Final -Dcommons-lang3.version=3.18.0 -Dspring-framework.version=6.2.11 -Dspring.boot.version=3.4.5"
+  "MVN_CLI_OPTIONS": "-Dmaven.test.skip -Dcheckstyle.skip -Dnetty.version=4.2.13.Final -Dvertx.version=4.5.24 -Dcommons-lang3.version=3.18.0 -Djackson-bom.version=2.21.1 -Dspring-boot.version=3.5.14"
 }
